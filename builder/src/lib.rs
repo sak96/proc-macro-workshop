@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use quote::{quote, quote_spanned};
+use quote::{format_ident, quote, quote_spanned};
 use syn::{
     parse_macro_input, spanned::Spanned, DataStruct, DeriveInput, Field, Fields, FieldsNamed,
     GenericArgument, Ident, Lit, PathArguments, PathSegment, Type,
@@ -9,7 +9,7 @@ use syn::{
 pub fn derive(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
     let name = &ast.ident;
-    let builder_name = syn::Ident::new(&format!("{}Builder", &ast.ident), ast.ident.span());
+    let builder_name = format_ident!("{}Builder", &ast.ident, span=ast.ident.span());
     let named_fields = match ast.data {
         syn::Data::Struct(DataStruct {
             fields:
@@ -98,7 +98,7 @@ impl std::convert::From<&Field> for FieldType {
                 let option_ident = each.path.get_ident();
                 if option_ident.is_some() && option_ident.unwrap() == "each" {
                     if let Lit::Str(ref name) = each.lit {
-                        let field_name = syn::Ident::new(&name.value(), each.lit.span());
+                        let field_name = format_ident!("{}", name.value(), span = each.lit.span());
                         if let Some(ref ty) = extract_inner_of_path(
                             &field.ty,
                             &["alloc::vec::Vec", "std::vec::Vec", "Vec"],
@@ -147,7 +147,8 @@ fn generate_code_components_for_field(field: &Field) -> [proc_macro2::TokenStrea
     } else {
         quote_spanned! { span => #field_name: #field_type }
     };
-    let constructor_field = quote_spanned! { span => #field_name: ::std::default::Default::default() };
+    let constructor_field =
+        quote_spanned! { span => #field_name: ::std::default::Default::default() };
 
     let builder_field = if matches!(typed_field, FieldType::Normal(_)) {
         quote_spanned! { span =>
